@@ -195,5 +195,90 @@ search = (function () {
     };
 }());
 
-module.exports.search = search;
-module.exports.links = getLinks;
+// A convenience method that will automatically search and return links
+// directly.
+function quickLinks(show, done) {
+    var id, section, title, year, season, episode;
+
+    // If only the ID is set, assume this is a movie and delegate to getLinks
+    // directly.
+    id = show.id;
+
+    section = show.section;
+
+    if (!section) {
+        if (!show.season && !show.episode)  {
+            section = 'movies';
+        } else {
+            section = 'tv';
+        }
+    }
+
+    if (section === 'tv') {
+        season = show.season || 1;
+        episode = show.episode || 1;
+    }
+
+    if (id && section === 'movies') {
+        return getLinks(show, function (err, links) {
+            if (err) {
+                return done(err);
+            }
+
+            done(null, links, show.id);
+        });
+    } else if (id && section === 'tv') {
+        return getLinks({
+            id: show.id,
+            season: season,
+            episode: episode
+        }, function (err, links) {
+            if (err) {
+                return done(err);
+            }
+
+            done(null, links, show.id);
+        });
+    }
+
+    if (typeof show === 'string') {
+        title = show;
+    } else {
+        title = show.title || '';
+        year = show.year;
+    }
+
+    title = title.toLowerCase();
+
+    search(section, title, function (err, shows) {
+        var found, i;
+
+        if (err) {
+            return done(err);
+        }
+
+        for (i = 0; i < shows.length; i += 1) {
+            if (
+                shows[i].title.toLowerCase() === title &&
+                (year ? shows[i].year === year : true)
+            ) {
+                found = shows[i];
+                break;
+            }
+        }
+
+        if (!found) {
+            return done(null, []);
+        }
+
+        getLinks({
+            id: found.id,
+            season: season,
+            episode: episode
+        }, function (err, links) {
+            return done(null, links, found.id);
+        });
+    });
+}
+
+module.exports = quickLinks;

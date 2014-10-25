@@ -1,23 +1,33 @@
 var primewire = require('./');
 
-primewire.search('movies', 'texas chainsaw', function (err, movies) {
+function display(err, links, id) {
     if (err) {
-        return console.error(err);
+        return console.error(err.stack);
     }
 
-    if (!movies) {
-        return console.log('No movies were found!');
-    }
+    console.log('%d total links found for "%s".', links.length, id);
+    console.log('Watch now at ' + links[0]);
+}
 
-    movies.forEach(function (movie) {
-        primewire.links(movie.id, function (err, links) {
-            if (err) {
-                return console.error(err);
-            }
+primewire({
+    title: 'The Simpsons',
+    year: 1989,
+    season: 1,
+    episode: 2
+}, display);
 
-            console.log('%s (%d)', movie.title, movie.year);
-            console.log('%d total links found!', links.length);
-            console.log('Watch now at: ' + links[0] + '\n');
-        });
-    });
-});
+// Using an ID instead of title/year will result in less page load time.
+primewire({
+    id: '4131', // http://www.primewire.ag/watch-4131-The-Simpsons
+    season: 1,
+    episode: 4
+}, display);
+
+primewire({
+    title: 'Saw',
+    year: 2004
+}, display);
+
+primewire({
+    id: '1672' // http://www.primewire.ag/watch-1672-Saw-II
+}, display);

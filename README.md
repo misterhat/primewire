@@ -1,5 +1,5 @@
 # primewire
-Scrapes streaming links and searches from PrimeWire.
+Scrapes streaming links from PrimeWire.
 
 ## Installation
     $ npm install primewire
@@ -8,53 +8,53 @@ Scrapes streaming links and searches from PrimeWire.
 ```javascript
 var primewire = require('primewire');
 
-primewire.search('movies', 'texas chainsaw', function (err, movies) {
+function display(err, links, id) {
     if (err) {
-        return console.error(err);
+        return console.error(err.stack);
     }
 
-    if (!movies) {
-        return console.log('No movies were found!');
-    }
+    console.log('%d total links found for "%s".', links.length, id);
+    console.log('Watch now at ' + links[0]);
+}
 
-    movies.forEach(function (movie) {
-        primewire.links(movie.id, function (err, links) {
-            if (err) {
-                return console.error(err);
-            }
+primewire({
+    title: 'The Simpsons',
+    year: 1989,
+    season: 1,
+    episode: 2
+}, display);
 
-            console.log('%s (%d)', movie.title, movie.year);
-            console.log('%d total links found!', links.length);
-            console.log('Watch now at: ' + links[0] + '\n');
-        });
-    });
-});
+// Using an ID instead of title/year will result in less page load time.
+primewire({
+    id: '4131', // http://www.primewire.ag/watch-4131-The-Simpsons
+    season: 1,
+    episode: 4
+}, display);
+
+primewire({
+    title: 'Saw',
+    year: 2004
+}, display);
+
+primewire({
+    id: '1672' // http://www.primewire.ag/watch-1672-Saw-II
+}, display);
 ```
 
 ## API
-### .search(section, terms, [page], callback)
-Search the specified section on PrimeWire for TV shows or movies.
-
-`section` should be a string with the value `"movies"` or `"tv"`.
-
-`terms` is a string containing the terms you wish to search for.
-
-`page` is an integer describing which page to start scraping from. By default
-it starts at 1.
-
-`callback` returns two values. The first being an array of objects. Each object
-has an `id`, `title` and `year` property. The second value is the amount
-of remaining pages.
-
-### .links(show, callback)
+### primewire(show, callback)
 Grab all associated links (not including advertisements) for a specific
 movie or TV episode.
 
-`show` can either be a string or an object. If `show` is a string, it's presumed
-to be a movie ID. Otherwise, if `show` is an object, it's assumed to have either
-an `id` property, or `id`, `season` and `episode` properties.
+`show` is presumed to either be a string or an object. If `show` is a string,
+it's assumed to be a movie `id` and will fetch the links for such movie.
+Otherwise, if `show` is an object, it's assumed to have an `id` property, or
+`title` and `year` properties.
+If `show` describes a TV episode, include `season` and `episode` properties
+as well.
 
-`callback` returns an array of strings corresponding to each playback URL.
+`callback` returns an array of strings corresponding to each playback URL along
+with an optional `id` value.
 
 ## License
 MIT
