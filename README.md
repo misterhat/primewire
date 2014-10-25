@@ -29,6 +29,7 @@ primewire.search('movies', 'texas chainsaw', function (err, movies) {
         });
     });
 });
+```
 
 ## API
 ### .search(section, terms, [page], callback)
