@@ -3,7 +3,7 @@ var tap = require('tap').test,
     primewire = require('./');
 
 tap('finding links', function (test) {
-    test.plan(2);
+    test.plan(3);
 
     primewire({
         title: 'the simpsons',
@@ -18,5 +18,13 @@ tap('finding links', function (test) {
         year: 2004
     }, function (err, links) {
         test.ok(!err && links && links.length, 'movie links');
+    });
+
+    primewire({
+        id: '4131',
+        season: 1,
+        episode: 4
+    }, function (err, links) {
+        test.ok(!err && links && links.length, 'links by id');
     });
 });

@@ -3,14 +3,10 @@ var qs = require('querystring'),
     cheerio = require('cheerio'),
     needle = require('needle');
 
-var HOST = 'http://www.primewire.ag',
-    // Search results per page.
-    PER_PAGE = 20;
-
 var search;
 
 // Get each third-party playback links excluding advertisements.
-function getLinks(show, done) {
+function getLinks(show, options, done) {
     var id, url;
 
     if (show.hasOwnProperty('id')) {
@@ -19,7 +15,7 @@ function getLinks(show, done) {
         id = show;
     }
 
-    url = HOST;
+    url = options.host;
 
     if (show.season && show.episode) {
         url +=
@@ -29,17 +25,11 @@ function getLinks(show, done) {
         url += '/watch-' + id + '-X';
     }
 
-    needle.get(url, function (err, res, body) {
+    needle.get(url, options.needle, function (err, res, body) {
         var $, links;
 
         if (err) {
             return done(err);
-        }
-
-        if (res.statusCode !== 200) {
-            return done(new Error(
-                'Unsuccessful status code "' + res.statusCode + '" returned.'
-            ));
         }
 
         try {
@@ -71,18 +61,12 @@ function getLinks(show, done) {
 }
 
 // Search is protected with a CSRF key for some reason.
-function getKey(done) {
-    needle.get(HOST, function (err, res, body) {
+function getKey(options, done) {
+    needle.get(options.host, options.needle, function (err, res, body) {
         var $, key;
 
         if (err) {
             return done(err);
-        }
-
-        if (res.statusCode !== 200) {
-            return done(new Error(
-                'Unsuccessful status code "' + res.statusCode + '" returned.'
-            ));
         }
 
         try {
@@ -104,32 +88,25 @@ function getKey(done) {
 search = (function () {
     var key;
 
-    return function (section, terms, page, done) {
-        if (!done) {
-            done = page;
-            page = 1;
-        }
-
+    return function (section, terms, options, done) {
         if (!key) {
-            getKey(function (err, newKey) {
+            return getKey(options, function (err, newKey) {
                 if (err) {
                     return done(err);
                 }
 
                 key = newKey;
-                search(section, terms, page, done);
+                search(section, terms, options, done);
             });
-
-            return;
         }
 
-        needle.get(HOST + '?' + qs.encode({
+        needle.get(options.host + '?' + qs.encode({
             'search_keywords': terms,
             'search_section': section === 'tv' ? 2 : 1,
             key: key,
-            page: page
-        }), function (err, res, body) {
-            var $, shows, remaining;
+            page: 1
+        }), options.needle, function (err, res, body) {
+            var $, shows;
 
             if (err) {
                 return done(err);
@@ -138,22 +115,9 @@ search = (function () {
             // This usually means that our CSRF session has expired, so load
             // again and retry the search.
             if (res.statusCode === 302) {
-                getKey(function (err) {
-                    if (err) {
-                        return done(err);
-                    }
+                key = undefined;
 
-                    search(section, terms, page, done);
-                });
-
-                return;
-            }
-
-            if (res.statusCode !== 200) {
-                return done(new Error(
-                    'Unsuccessful status code "' + res.statusCode +
-                    '" returned.'
-                ));
+                return search(section, terms, options, done);
             }
 
             shows = [];
@@ -181,24 +145,22 @@ search = (function () {
                 shows.push({ id: id, title: title, year: year });
             });
 
-            if (shows.length) {
-                remaining = $('.number_movies_result').text();
-                remaining = remaining.match(/\d+/g);
-                remaining =
-                    remaining ? Math.ceil(+remaining[0] / PER_PAGE) - page : 0;
-            } else {
-                remaining = 0;
-            }
-
-            done(null, shows, remaining);
+            done(null, shows);
         });
     };
 }());
 
 // A convenience method that will automatically search and return links
 // directly.
-function quickLinks(show, done) {
+function quickLinks(show, options, done) {
     var id, section, title, year, season, episode;
+
+    if (!done) {
+        done = options;
+        options = { needle: {} };
+    }
+
+    options.host = options.host || 'http://www.primewire.ag';
 
     // If only the ID is set, assume this is a movie and delegate to getLinks
     // directly.
@@ -220,7 +182,7 @@ function quickLinks(show, done) {
     }
 
     if (id && section === 'movies') {
-        return getLinks(show, function (err, links) {
+        return getLinks(show, options, function (err, links) {
             if (err) {
                 return done(err);
             }
@@ -232,7 +194,7 @@ function quickLinks(show, done) {
             id: show.id,
             season: season,
             episode: episode
-        }, function (err, links) {
+        }, options, function (err, links) {
             if (err) {
                 return done(err);
             }
@@ -250,21 +212,22 @@ function quickLinks(show, done) {
 
     title = title.toLowerCase();
 
-    search(section, title, function (err, shows) {
+    search(section, title, options, function (err, shows) {
         var found, i;
 
         if (err) {
             return done(err);
         }
 
-        for (i = 0; i < shows.length; i += 1) {
-            if (
-                shows[i].title.toLowerCase() === title &&
-                (year ? shows[i].year === year : true)
-            ) {
-                found = shows[i];
-                break;
+        if (year) {
+            for (i = 0; i < shows.length; i += 1) {
+                if (shows[i].year === year) {
+                    found = shows[i];
+                    break;
+                }
             }
+        } else {
+            found = shows[0];
         }
 
         if (!found) {
@@ -275,8 +238,8 @@ function quickLinks(show, done) {
             id: found.id,
             season: season,
             episode: episode
-        }, function (err, links) {
-            return done(null, links, found.id);
+        }, options, function (err, links) {
+            done(null, links, found.id);
         });
     });
 }
