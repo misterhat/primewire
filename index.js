@@ -3,8 +3,6 @@ var qs = require('querystring'),
     cheerio = require('cheerio'),
     needle = require('needle');
 
-var search;
-
 // Get each third-party playback links excluding advertisements.
 function getLinks(show, options, done) {
     var id, url;
@@ -60,10 +58,15 @@ function getLinks(show, options, done) {
     });
 }
 
-// Search is protected with a CSRF key for some reason.
-function getKey(options, done) {
-    needle.get(options.host, options.needle, function (err, res, body) {
-        var $, key;
+function search(terms, options, done) {
+    needle.get(options.host + '?' + qs.encode({
+        'search_keywords': terms.title,
+        'search_section': terms.section === 'tv' ? 2 : 1,
+        key: '',
+        year: terms.year,
+        page: 1
+    }), options.needle, function (err, res, body) {
+        var $, shows;
 
         if (err) {
             return done(err);
@@ -75,80 +78,28 @@ function getKey(options, done) {
             return done(e);
         }
 
-        key = $('input[name="key"]').attr('value');
+        shows = [];
 
-        if (!key) {
-            done(new Error('Could not locate search key.'));
-        } else {
-            done(null, key);
-        }
+        $('.index_item > a').each(function () {
+            var title = $(this).attr('title'),
+                id = $(this).attr('href'),
+                year;
+
+            id = id.match(/\d+/g);
+            id = id ? id[0] : null;
+
+            year = title.match(/\((\d+)\)/);
+            year = year ? +year[1] : null;
+
+            // Slice off "Watch " and "(XXXX)".
+            title = title.slice(6, -7);
+
+            shows.push({ id: id, title: title, year: year });
+        });
+
+        done(null, shows);
     });
 }
-
-search = (function () {
-    var key;
-
-    return function (section, terms, options, done) {
-        if (!key) {
-            return getKey(options, function (err, newKey) {
-                if (err) {
-                    return done(err);
-                }
-
-                key = newKey;
-                search(section, terms, options, done);
-            });
-        }
-
-        needle.get(options.host + '?' + qs.encode({
-            'search_keywords': terms,
-            'search_section': section === 'tv' ? 2 : 1,
-            key: key,
-            page: 1
-        }), options.needle, function (err, res, body) {
-            var $, shows;
-
-            if (err) {
-                return done(err);
-            }
-
-            // This usually means that our CSRF session has expired, so load
-            // again and retry the search.
-            if (res.statusCode === 302) {
-                key = undefined;
-
-                return search(section, terms, options, done);
-            }
-
-            shows = [];
-
-            try {
-                $ = cheerio.load(body);
-            } catch (e) {
-                return done(e);
-            }
-
-            $('.index_item > a').each(function () {
-                var title = $(this).attr('title'),
-                    id = $(this).attr('href'),
-                    year;
-
-                id = id.match(/\d+/g);
-                id = id ? id[0] : null;
-
-                year = title.match(/\((\d+)\)/);
-                year = year ? +year[1] : null;
-
-                // Slice off "Watch " and "(XXXX)".
-                title = title.slice(6, -7);
-
-                shows.push({ id: id, title: title, year: year });
-            });
-
-            done(null, shows);
-        });
-    };
-}());
 
 // A convenience method that will automatically search and return links
 // directly.
@@ -212,23 +163,18 @@ function quickLinks(show, options, done) {
 
     title = title.toLowerCase();
 
-    search(section, title, options, function (err, shows) {
-        var found, i;
+    search({
+        section: section,
+        title: title,
+        year: year
+    }, options, function (err, shows) {
+        var found;
 
         if (err) {
             return done(err);
         }
 
-        if (year) {
-            for (i = 0; i < shows.length; i += 1) {
-                if (shows[i].year === year) {
-                    found = shows[i];
-                    break;
-                }
-            }
-        } else {
-            found = shows[0];
-        }
+        found = shows[0];
 
         if (!found) {
             return done(null, []);
