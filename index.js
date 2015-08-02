@@ -42,7 +42,7 @@ function getLinks(show, options, done) {
             var url;
 
             // Ignore advertisement links.
-            if ($(this).attr('class') == "no_c_link") {
+            if ($(this).attr('class') === "no_c_link") {
                 return;
             }
 
