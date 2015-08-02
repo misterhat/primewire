@@ -1,6 +1,7 @@
 var qs = require('querystring'),
 
     cheerio = require('cheerio'),
+    findEpisode = require('episode'),
     needle = require('needle');
 
 // Get each third-party playback links excluding advertisements.
@@ -58,6 +59,8 @@ function getLinks(show, options, done) {
     });
 }
 
+// Search for movies and TV shows based on terms, and return the title, year
+// and ID for each.
 function search(terms, options, done) {
     needle.get(options.host + '?' + qs.encode({
         'search_keywords': terms.title,
@@ -104,7 +107,7 @@ function search(terms, options, done) {
 // A convenience method that will automatically search and return links
 // directly.
 function quickLinks(show, options, done) {
-    var id, section, title, year, season, episode;
+    var section, season, episode, title, year, found;
 
     if (!done) {
         done = options;
@@ -113,45 +116,37 @@ function quickLinks(show, options, done) {
 
     options.host = options.host || 'http://www.primewire.ag';
 
-    // If only the ID is set, assume this is a movie and delegate to getLinks
-    // directly.
-    id = show.id;
+    section = 'movie';
 
-    section = show.section;
+    if (show.section === 'tv' || (show.season && show.episode)) {
+        section = 'tv';
 
-    if (!section) {
-        if (!show.season && !show.episode)  {
-            section = 'movies';
-        } else {
-            section = 'tv';
-        }
-    }
-
-    if (section === 'tv') {
         season = show.season || 1;
         episode = show.episode || 1;
-    }
 
-    if (id && section === 'movies') {
-        return getLinks(show, options, function (err, links) {
-            if (err) {
-                return done(err);
-            }
+        if (show.id) {
+            return getLinks({
+                id: show.id,
+                season: season,
+                episode: episode
+            }, options, function (err, links) {
+                if (err) {
+                    return done(err);
+                }
 
-            done(null, links, show.id);
-        });
-    } else if (id && section === 'tv') {
-        return getLinks({
-            id: show.id,
-            season: season,
-            episode: episode
-        }, options, function (err, links) {
-            if (err) {
-                return done(err);
-            }
+                done(null, links, show.id);
+            });
+        }
+    } else {
+        if (show.id) {
+            return getLinks(show.id, options, function (err, links) {
+                if (err) {
+                    return done(err);
+                }
 
-            done(null, links, show.id);
-        });
+                done(null, links, show.id);
+            });
+        }
     }
 
     if (typeof show === 'string') {
@@ -163,8 +158,20 @@ function quickLinks(show, options, done) {
 
     title = title.toLowerCase();
 
+    if (!season || !episode) {
+        found = findEpisode(title);
+
+        if (found) {
+            show.section = 'tv';
+            title = title.replace(new RegExp(found.matches.join('|'), 'g'), '');
+            title = title.trim();
+            season = found.season;
+            episode = found.episode;
+        }
+    }
+
     search({
-        section: section,
+        section: show.section,
         title: title,
         year: year
     }, options, function (err, shows) {
@@ -185,7 +192,7 @@ function quickLinks(show, options, done) {
             season: season,
             episode: episode
         }, options, function (err, links) {
-            done(null, links, found.id);
+            done(err, links, found.id);
         });
     });
 }
