@@ -162,7 +162,7 @@ function quickLinks(show, options, done) {
         found = findEpisode(title);
 
         if (found) {
-            show.section = 'tv';
+            section = 'tv';
             title = title.replace(new RegExp(found.matches.join('|'), 'g'), '');
             title = title.trim();
             season = found.season;
@@ -171,7 +171,7 @@ function quickLinks(show, options, done) {
     }
 
     search({
-        section: show.section,
+        section: section,
         title: title,
         year: year
     }, options, function (err, shows) {
