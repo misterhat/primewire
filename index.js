@@ -40,6 +40,7 @@ function getLinks(show, options, done) {
         links = [];
 
         $('.movie_version').each(function () {
+            var url;
 
             // Ignore advertisement links.
             var label = $(this).find('.version_host script').html();
@@ -47,7 +48,6 @@ function getLinks(show, options, done) {
                 return;
             }
 
-            var url;
             url = $(this).find('a[href^="/external"]').attr('href');
             url = url.slice(url.indexOf('?') + 1);
             url = qs.parse(url).url;

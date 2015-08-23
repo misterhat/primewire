@@ -1,6 +1,6 @@
 {
   "name": "primewire",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Scrapes streaming links from PrimeWire.",
   "main": "index.js",
   "bin": {
