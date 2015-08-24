@@ -39,15 +39,16 @@ function getLinks(show, options, done) {
 
         links = [];
 
-        $('.movie_version a[href^="/external"]').each(function () {
-            var url;
+        $('.movie_version').each(function () {
 
             // Ignore advertisement links.
-            if ($(this).attr('class') === "no_c_link") {
+            var label = $(this).find('.version_host script').html();
+            if (label.indexOf("Promo Host") > -1 || label.indexOf("Sponsor Host") > -1) {
                 return;
             }
 
-            url = $(this).attr('href');
+            var url;
+            url = $(this).find('a[href^="/external"]').attr('href');
             url = url.slice(url.indexOf('?') + 1);
             url = qs.parse(url).url;
             url = new Buffer(url, 'base64').toString();
