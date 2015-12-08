@@ -43,8 +43,8 @@ function getLinks(show, options, done) {
             var url;
 
             // Ignore advertisement links.
-            var label = $(this).find('.version_host script').html();
-            if (label.indexOf("Promo Host") > -1 || label.indexOf("Sponsor Host") > -1) {
+            var label = $(this).find('.version_host script').html() || undefined;
+            if (label === undefined || label.indexOf("Promo Host") > -1 || label.indexOf("Sponsor Host") > -1) {
                 return;
             }
 
