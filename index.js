@@ -48,7 +48,7 @@ function getLinks(show, options, done) {
                 return;
             }
 
-            url = $(this).find('a[href^="/external"]').attr('href');
+            url = $(this).find('a:contains("Version")').attr('href');
             url = url.slice(url.indexOf('?') + 1);
             url = qs.parse(url).url;
             url = new Buffer(url, 'base64').toString();
