@@ -43,12 +43,12 @@ function getLinks(show, options, done) {
             var url;
 
             // Ignore advertisement links.
-            var label = $(this).find('.version_host script').html();
-            if (label.indexOf("Promo Host") > -1 || label.indexOf("Sponsor Host") > -1) {
+            var label = $(this).find('.version_host script').html() || undefined;
+            if (label === undefined || label.indexOf("Promo Host") > -1 || label.indexOf("Sponsor Host") > -1) {
                 return;
             }
 
-            url = $(this).find('a[href^="/external"]').attr('href');
+            url = $(this).find('a:contains("Version")').attr('href');
             url = url.slice(url.indexOf('?') + 1);
             url = qs.parse(url).url;
             url = new Buffer(url, 'base64').toString();
