@@ -13,7 +13,6 @@ var argv = minimist(process.argv.slice(2)),
     year = +(argv.y || argv.year) || undefined,
     season = +(argv.s || argv.season) || undefined,
     episode = +(argv.e || argv.episode) || undefined;
-    all = argv.a || argv.all;
 
 if (version) {
     return console.log(package.version);
@@ -24,7 +23,6 @@ if (version) {
     console.log('  -y, --year\tYear of series or movie. Optional.');
     console.log('  -s, --season\tSeason of series. Optional.');
     console.log('  -e, --episode\tEpisode on of series. Optional.');
-    console.log('  -a, --all\tLists all available links. Optional.');
     return;
 }
 
@@ -38,8 +36,6 @@ primewire({
         console.error(err.stack);
         return process.exit(1);
     }
-    if (!all) {
-      links = links.slice(0, 8); 
-    }
+
     console.log(links.join('\n'));
 });
