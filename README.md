@@ -2,7 +2,26 @@
 Scrapes streaming links from PrimeWire.
 
 ## Installation
-    $ npm install primewire
+For the command-line program:
+
+    $ sudo npm install -g primewire
+
+For the module:
+
+    $ npm install --save primewire
+
+## Usage
+```
+usage: primewire [-hvysel] <search>
+  -h, --help    Display this screen.
+  -v, --version Display package version.
+  -y, --year    Year of series or movie. Optional.
+  -s, --season  Season of series. Optional.
+  -e, --episode Episode on of series. Optional.
+  -l, --latest  Fetch latest episode of a series. Optional.
+
+<search> is a title of series or movie.
+```
 
 ## Examples
 ```javascript
@@ -42,10 +61,12 @@ primewire({
 ```
 
 ## API
-### primewire(show, [options], callback)
+### primewire.host
+The base host to scrape from. Default: `"http://primewire.ag"`.
+
+### primewire(show, callback)
 Grab all associated links (not including advertisements) for a specific
 movie or TV episode.
-
 
 If `show` is an object it is expected to have the following properties:
 
@@ -69,13 +90,27 @@ If `show` is an object it is expected to have the following properties:
 
 Otherwise `show` is assumed to be a title.
 
-`options` is an optional object. If passed it's expected to have the `host`
-and/or `needle` properties. `host` is a string describing which website to
-scrape from (by default it's `"http://primewire.ag"`) and `needle` is an
-object passed into each `needle` request.
-
 `callback` returns an array of links for the specified show as the first
 argument, and the show `id` as the second.
 
+### primewire.latest(series, [distance], callback)
+Fetch the nth distance latest episode links of a TV series.
+
+`series` can be either a series ID (string or Number), or object containing
+`title` and/or `year` properties.
+
+`distance` is the nth laest episode to fetch. Default: 1
+
+`callback` returns the same result as above.
+
 ## License
-MIT
+Copyright (C) 2016 Mister Hat
+
+This library is free software; you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the Free
+Software Foundation; either version 3.0 of the License, or (at your option) any
+later version.
+
+This library is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.

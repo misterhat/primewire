@@ -1,12 +1,15 @@
 var qs = require('querystring'),
 
     cheerio = require('cheerio'),
-    findEpisode = require('episode'),
-    needle = require('needle');
+    get = require('simple-get'),
+    findEpisode = require('episode');
 
-// Get each third-party playback links excluding advertisements.
-function getLinks(show, options, done) {
-    var id, url;
+module.exports.host = 'http://primewire.ag';
+
+// get each third-party playback links excluding advertisements
+function getLinks(show, done) {
+    var url = exports.host,
+        id;
 
     if (show.hasOwnProperty('id')) {
         id = show.id;
@@ -14,17 +17,14 @@ function getLinks(show, options, done) {
         id = show;
     }
 
-    url = options.host;
-
     if (show.season && show.episode) {
-        url +=
-            '/tv-' + id + '-X/season-' + show.season + '-episode-' +
-            show.episode;
+        url += '/tv-' + id + '-X/season-' + show.season + '-episode-' +
+               show.episode;
     } else {
         url += '/watch-' + id + '-X';
     }
 
-    needle.get(url, options.needle, function (err, res, body) {
+    get.concat(url, function (err, res, body) {
         var $, links;
 
         if (err) {
@@ -32,7 +32,7 @@ function getLinks(show, options, done) {
         }
 
         try {
-            $ = cheerio.load(body);
+            $ = cheerio.load(body.toString());
         } catch (e) {
             return done(e);
         }
@@ -40,11 +40,11 @@ function getLinks(show, options, done) {
         links = [];
 
         $('.movie_version').each(function () {
-            var url;
+            var label = $(this).find('.version_host script').html(),
+                url;
 
-            // Ignore advertisement links.
-            var label = $(this).find('.version_host script').html();
-            if (label.indexOf("Promo Host") > -1 || label.indexOf("Sponsor Host") > -1) {
+            // ignore advertisement links
+            if (/Promo|Sponsor/.test(label)) {
                 return;
             }
 
@@ -60,16 +60,86 @@ function getLinks(show, options, done) {
     });
 }
 
-// Search for movies and TV shows based on terms, and return the title, year
-// and ID for each.
-function search(terms, options, done) {
-    needle.get(options.host + '?' + qs.encode({
+// find the latest episode of a series
+function getLatest(series, distance, done) {
+    var url, id, terms;
+
+    if (!done) {
+        done = distance;
+        distance = 1;
+    }
+
+    if (series.hasOwnProperty('id')) {
+        id = series.id;
+    } else if (series.hasOwnProperty('title')) {
+        terms = { title: series.title };
+
+        if (series.hasOwnProperty('year')) {
+            terms.year = series.year;
+        }
+
+        return search(terms, function (err, shows) {
+            if (err) {
+                return done(err);
+            }
+
+            if (!shows.length) {
+                return done();
+            }
+
+            getLatest(shows[0].id, distance, done);
+        });
+    } else {
+        id = series;
+    }
+
+    url = exports.host + '/watch-' + id + '-X-online-free';
+
+    get.concat(url, function (err, res, body) {
+        var $, episode, match;
+
+        if (err) {
+            return done(err);
+        }
+
+        try {
+            $ = cheerio.load(body);
+        } catch (e) {
+            return done(e);
+        }
+
+        episode = $('.tv_episode_item a').get();
+        episode = episode[episode.length - distance];
+
+        if (!episode || !episode.attribs || !episode.attribs.href) {
+            return done(new Error('show not found'));
+        }
+
+        episode = episode.attribs.href;
+        match = episode.match(/\/season-(\d+)-episode-(\d+)/);
+
+        if (!match) {
+            return done(new Error('no latest season/episode found'));
+        }
+
+        getLinks({
+            id: id,
+            season: match[1],
+            episode: match[2]
+        }, done);
+    });
+}
+
+// search for movies and TV shows based on terms, and return the title, year
+// and id for each
+function search(terms, done) {
+    get.concat(exports.host + '?' + qs.encode({
         'search_keywords': terms.title,
         'search_section': terms.section === 'tv' ? 2 : 1,
         key: '',
         year: terms.year,
         page: 1
-    }), options.needle, function (err, res, body) {
+    }), function (err, res, body) {
         var $, shows;
 
         if (err) {
@@ -95,7 +165,7 @@ function search(terms, options, done) {
             year = title.match(/\((\d+)\)/);
             year = year ? +year[1] : null;
 
-            // Slice off "Watch " and "(XXXX)".
+            // slice off "Watch " and "(XXXX)"
             title = title.slice(6, -7);
 
             shows.push({ id: id, title: title, year: year });
@@ -105,17 +175,10 @@ function search(terms, options, done) {
     });
 }
 
-// A convenience method that will automatically search and return links
-// directly.
-function quickLinks(show, options, done) {
+// a convenience method that will automatically search and return links
+// directly
+function quickLinks(show, done) {
     var section, season, episode, title, year, found;
-
-    if (!done) {
-        done = options;
-        options = { needle: {} };
-    }
-
-    options.host = options.host || 'http://www.primewire.ag';
 
     section = 'movie';
 
@@ -130,7 +193,7 @@ function quickLinks(show, options, done) {
                 id: show.id,
                 season: season,
                 episode: episode
-            }, options, function (err, links) {
+            }, function (err, links) {
                 if (err) {
                     return done(err);
                 }
@@ -140,7 +203,7 @@ function quickLinks(show, options, done) {
         }
     } else {
         if (show.id) {
-            return getLinks(show.id, options, function (err, links) {
+            return getLinks(show.id, function (err, links) {
                 if (err) {
                     return done(err);
                 }
@@ -175,7 +238,7 @@ function quickLinks(show, options, done) {
         section: section,
         title: title,
         year: year
-    }, options, function (err, shows) {
+    }, function (err, shows) {
         var found;
 
         if (err) {
@@ -192,10 +255,11 @@ function quickLinks(show, options, done) {
             id: found.id,
             season: season,
             episode: episode
-        }, options, function (err, links) {
+        }, function (err, links) {
             done(err, links, found.id);
         });
     });
 }
 
 module.exports = quickLinks;
+module.exports.latest = getLatest;
