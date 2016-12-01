@@ -13,7 +13,7 @@ var argv = minimist(process.argv.slice(2)),
     year = +(argv.y || argv.year) || undefined,
     season = +(argv.s || argv.season) || undefined,
     episode = +(argv.e || argv.episode) || undefined,
-    latest = +(argv.l || argv.latest) || 1;
+    latest = +(argv.l || argv.latest);
 
 if (version) {
     return console.log(package.version);
@@ -36,7 +36,9 @@ function done(err, links) {
         return process.exit(1);
     }
 
-    console.log(links.join('\n'));
+    if (links && links.length) {
+        console.log(links.join('\n'));
+    }
 }
 
 if (latest) {
