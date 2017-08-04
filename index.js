@@ -48,7 +48,7 @@ function getLinks(show, done) {
                 return;
             }
 
-            url = $(this).find('a[href^="/goto.php"]').attr('href');
+            url = $(this).find('a[href^="/gohere.php"]').attr('href');
             url = url.slice(url.indexOf('?') + 1);
             url = qs.parse(url).url;
             url = new Buffer(url, 'base64').toString();
